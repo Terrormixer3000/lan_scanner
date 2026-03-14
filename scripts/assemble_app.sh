@@ -62,3 +62,5 @@ if [ -n "${APP_BUILD_NUMBER:-}" ]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${APP_BUILD_NUMBER}" \
     "${APP_DIR}/Contents/Info.plist"
 fi
+
+codesign --force --sign - --deep "${APP_DIR}"
