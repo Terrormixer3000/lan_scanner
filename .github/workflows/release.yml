@@ -30,40 +30,11 @@ jobs:
       - name: Build release binary
         run: swift build -c release
 
-      # Assemble a minimal .app bundle from the compiled binary and Info.plist.
-      # The app is unsigned; users must right-click → Open on first launch (Gatekeeper).
       - name: Assemble .app bundle
         run: |
-          APP_DIR="LAN Scanner.app"
-          mkdir -p "${APP_DIR}/Contents/MacOS"
-          mkdir -p "${APP_DIR}/Contents/Resources"
-
-          cp .build/release/LanScanner "${APP_DIR}/Contents/MacOS/LanScanner"
-          cp Sources/LanScanner/Info.plist "${APP_DIR}/Contents/Info.plist"
-          cp Sources/LanScanner/AppIcon.icns "${APP_DIR}/Contents/Resources/AppIcon.icns"
-
-          # Compile Asset Catalog → Assets.car (provides CFBundleIconName for modern macOS)
-          actool Sources/LanScanner/Assets.xcassets \
-            --compile "${APP_DIR}/Contents/Resources" \
-            --platform macosx \
-            --minimum-deployment-target 14.0 \
-            --app-icon AppIcon \
-            --output-partial-info-plist /tmp/actool-partial.plist
-
-          # Copy Sparkle framework into the app bundle
-          SPARKLE_PATH=$(find .build -path "*/Sparkle.framework" -type d | head -1)
-          if [ -n "${SPARKLE_PATH}" ]; then
-            mkdir -p "${APP_DIR}/Contents/Frameworks"
-            cp -R "${SPARKLE_PATH}" "${APP_DIR}/Contents/Frameworks/"
-          fi
-
-          # Inject the tag version into the bundle's Info.plist
           TAG="${GITHUB_REF_NAME}"          # e.g. v1.2.3
           VERSION="${TAG#v}"               # strip leading 'v' → 1.2.3
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" \
-              "${APP_DIR}/Contents/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${GITHUB_RUN_NUMBER}" \
-              "${APP_DIR}/Contents/Info.plist"
+          APP_VERSION="${VERSION}" APP_BUILD_NUMBER="${GITHUB_RUN_NUMBER}" ./scripts/assemble_app.sh
 
       - name: Create ZIP archive
         run: |
