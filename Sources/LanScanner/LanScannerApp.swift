@@ -2,16 +2,30 @@
 // Copyright © 2026 Terrormixer3000. Licensed under GPL-3.0.
 
 import SwiftUI
+import Sparkle
 
 /// The top-level SwiftUI application entry point.
 ///
 /// Declares two scenes:
 /// - A `WindowGroup` hosting `ContentView`, which pre-loads the vendor database on first launch.
 /// - A `Settings` scene bound to `SettingsView` (accessible via ⌘,).
+///
+/// Integrates the Sparkle framework for automatic update checking via `SPUStandardUpdaterController`.
 @main
 struct LanScannerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
+
+    /// Sparkle update controller — starts checking for updates automatically on launch.
+    private let updaterController: SPUStandardUpdaterController
+
+    init() {
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: true,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -26,10 +40,13 @@ struct LanScannerApp: App {
         .defaultPosition(.center)
         .commands {
             CommandGroup(replacing: .newItem) { }
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesView(updater: updaterController.updater)
+            }
         }
-        
+
         Settings {
-            SettingsView()
+            SettingsView(updater: updaterController.updater)
         }
     }
 }

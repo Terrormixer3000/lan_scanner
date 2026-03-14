@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Select latest Xcode
         run: |
@@ -48,6 +50,13 @@ jobs:
             --app-icon AppIcon \
             --output-partial-info-plist /tmp/actool-partial.plist
 
+          # Copy Sparkle framework into the app bundle
+          SPARKLE_PATH=$(find .build -path "*/Sparkle.framework" -type d | head -1)
+          if [ -n "${SPARKLE_PATH}" ]; then
+            mkdir -p "${APP_DIR}/Contents/Frameworks"
+            cp -R "${SPARKLE_PATH}" "${APP_DIR}/Contents/Frameworks/"
+          fi
+
           # Inject the tag version into the bundle's Info.plist
           TAG="${GITHUB_REF_NAME}"          # e.g. v1.2.3
           VERSION="${TAG#v}"               # strip leading 'v' → 1.2.3
@@ -60,6 +69,58 @@ jobs:
         run: |
           ditto -c -k --sequesterRsrc --keepParent "LAN Scanner.app" LanScanner.zip
 
+      # Sign the update ZIP with Sparkle's EdDSA key and update the appcast.
+      - name: Sign update and update appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          SIZE=$(stat -f%z LanScanner.zip)
+          PUB_DATE=$(date -R)
+
+          # Find the sign_update tool from Sparkle's binary artifact
+          SIGN_TOOL=$(find .build -name "sign_update" -type f | head -1)
+
+          if [ -z "${SIGN_TOOL}" ]; then
+            echo "Warning: sign_update not found, skipping Sparkle signing"
+            exit 0
+          fi
+
+          # Sign the ZIP — sign_update reads SPARKLE_PRIVATE_KEY from env
+          # Output format: sparkle:edSignature="..." length="..."
+          SIG_OUTPUT=$(echo "${SPARKLE_PRIVATE_KEY}" | "${SIGN_TOOL}" LanScanner.zip --ed-key-file -)
+          ED_SIGNATURE=$(echo "${SIG_OUTPUT}" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
+
+          DOWNLOAD_URL="https://github.com/Terrormixer3000/lan_scanner/releases/download/${TAG}/LanScanner.zip"
+
+          # Build the new appcast item
+          NEW_ITEM="    <item>
+              <title>Version ${VERSION}</title>
+              <pubDate>${PUB_DATE}</pubDate>
+              <sparkle:version>${GITHUB_RUN_NUMBER}</sparkle:version>
+              <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+              <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+              <enclosure url=\"${DOWNLOAD_URL}\"
+                         sparkle:edSignature=\"${ED_SIGNATURE}\"
+                         length=\"${SIZE}\"
+                         type=\"application/octet-stream\"/>
+            </item>"
+
+          # Insert the new item before </channel>
+          sed -i '' "s|</channel>|${NEW_ITEM}\n  </channel>|" appcast.xml
+
+      - name: Commit updated appcast
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          git add appcast.xml
+          git diff --cached --quiet && echo "No appcast changes" && exit 0
+          git commit -m "Update appcast for ${GITHUB_REF_NAME}"
+          git push origin main
+
       - name: Create GitHub Release and upload asset
         uses: softprops/action-gh-release@v2
         with:
@@ -71,6 +132,10 @@ jobs:
             1. Download **LanScanner.zip** below.
             2. Unzip and move **LAN Scanner.app** to your `/Applications` folder.
             3. On first launch, right-click the app and choose **Open** to bypass Gatekeeper (the app is unsigned).
+
+            ### Updates
+            Future updates will be delivered automatically via the built-in updater (Sparkle).
+            You can also check manually via the **LAN Scanner → Check for Updates…** menu.
 
             ### Requirements
             - macOS 14.0 (Sonoma) or later
