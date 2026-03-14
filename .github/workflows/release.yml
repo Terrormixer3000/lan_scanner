@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release (macOS)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build release binary
+        run: swift build -c release
+
+      # Assemble a minimal .app bundle from the compiled binary and Info.plist.
+      # The app is unsigned; users must right-click → Open on first launch (Gatekeeper).
+      - name: Assemble .app bundle
+        run: |
+          APP_DIR="LAN Scanner.app"
+          mkdir -p "${APP_DIR}/Contents/MacOS"
+          mkdir -p "${APP_DIR}/Contents/Resources"
+
+          cp .build/release/LanScanner "${APP_DIR}/Contents/MacOS/LanScanner"
+          cp Sources/LanScanner/Info.plist "${APP_DIR}/Contents/Info.plist"
+
+          # Inject the tag version into the bundle's Info.plist
+          TAG="${GITHUB_REF_NAME}"          # e.g. v1.2.3
+          VERSION="${TAG#v}"               # strip leading 'v' → 1.2.3
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" \
+              "${APP_DIR}/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${GITHUB_RUN_NUMBER}" \
+              "${APP_DIR}/Contents/Info.plist"
+
+      - name: Create ZIP archive
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent "LAN Scanner.app" LanScanner.zip
+
+      - name: Create GitHub Release and upload asset
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "LAN Scanner ${{ github.ref_name }}"
+          body: |
+            ## LAN Scanner ${{ github.ref_name }}
+
+            ### Installation
+            1. Download **LanScanner.zip** below.
+            2. Unzip and move **LAN Scanner.app** to your `/Applications` folder.
+            3. On first launch, right-click the app and choose **Open** to bypass Gatekeeper (the app is unsigned).
+
+            ### Requirements
+            - macOS 14.0 (Sonoma) or later
+
+            ### Changes
+            See the [commit history](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) for details.
+          files: LanScanner.zip
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
