@@ -38,7 +38,11 @@
     <string>https://raw.githubusercontent.com/Terrormixer3000/lan_scanner/main/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>bgcK3rbLj2PFpF4MUD/LMV3wyu++JYlNAj654vkqt70=</string>
+    <key>SUAllowsAutomaticUpdates</key>
+    <false/>
     <key>SUEnableInstallerLauncherService</key>
     <false/>
+    <key>SUPromptUserOnFirstLaunch</key>
+    <true/>
 </dict>
 </plist>
