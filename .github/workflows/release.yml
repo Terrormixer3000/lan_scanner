@@ -94,21 +94,24 @@ jobs:
 
           DOWNLOAD_URL="https://github.com/Terrormixer3000/lan_scanner/releases/download/${TAG}/LanScanner.zip"
 
-          # Build the new appcast item
-          NEW_ITEM="    <item>
-              <title>Version ${VERSION}</title>
-              <pubDate>${PUB_DATE}</pubDate>
-              <sparkle:version>${GITHUB_RUN_NUMBER}</sparkle:version>
-              <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-              <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-              <enclosure url=\"${DOWNLOAD_URL}\"
-                         sparkle:edSignature=\"${ED_SIGNATURE}\"
-                         length=\"${SIZE}\"
-                         type=\"application/octet-stream\"/>
-            </item>"
-
-          # Insert the new item before </channel>
-          sed -i '' "s|</channel>|${NEW_ITEM}\n  </channel>|" appcast.xml
+          # Build the new appcast item and insert before </channel>
+          awk -v ver="${VERSION}" -v pub="${PUB_DATE}" -v build="${GITHUB_RUN_NUMBER}" \
+              -v url="${DOWNLOAD_URL}" -v sig="${ED_SIGNATURE}" -v size="${SIZE}" \
+              '/<\/channel>/ {
+                print "    <item>"
+                print "      <title>Version " ver "</title>"
+                print "      <pubDate>" pub "</pubDate>"
+                print "      <sparkle:version>" build "</sparkle:version>"
+                print "      <sparkle:shortVersionString>" ver "</sparkle:shortVersionString>"
+                print "      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>"
+                print "      <enclosure url=\"" url "\""
+                print "                 sparkle:edSignature=\"" sig "\""
+                print "                 length=\"" size "\""
+                print "                 type=\"application/octet-stream\"/>"
+                print "    </item>"
+              }
+              { print }' appcast.xml > appcast_new.xml
+          mv appcast_new.xml appcast.xml
 
       - name: Commit updated appcast
         run: |
