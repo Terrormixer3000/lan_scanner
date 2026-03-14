@@ -1,0 +1,55 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xcuserstate
+*.xcbkptlist
+
+# Swift Package Manager
+.build/
+.swiftpm/
+*.resolved
+
+# DerivedData
+DerivedData/
+
+# Archives
+*.xcarchive
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# CocoaPods (if applicable)
+Pods/
+Podfile.lock
+
+# Carthage (if applicable)
+Carthage/Build/
+
+# Environment & secrets
+.env
+*.pem
+*.key
+*.p12
+*.mobileprovision
+
+# Logs
+*.log
