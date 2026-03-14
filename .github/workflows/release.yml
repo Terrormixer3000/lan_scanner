@@ -105,7 +105,7 @@ jobs:
             ### Installation
             1. Download **LanScanner.zip** below.
             2. Unzip and move **LAN Scanner.app** to your `/Applications` folder.
-            3. On first launch, right-click the app and choose **Open** to bypass Gatekeeper (the app is unsigned).
+            3. On first launch, right-click the app and choose **Open** to bypass Gatekeeper (the app is ad-hoc signed, but not Developer ID signed or notarized).
 
             ### Updates
             Future updates will be delivered automatically via the built-in updater (Sparkle).

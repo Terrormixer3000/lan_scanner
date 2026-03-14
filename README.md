@@ -43,7 +43,7 @@ A native macOS network scanner built with SwiftUI. Discover all devices on your 
 1. Go to the [Releases](https://github.com/Terrormixer3000/lan_scanner/releases) page.
 2. Download `LanScanner.zip` from the latest release.
 3. Unzip and move `LAN Scanner.app` to your `/Applications` folder.
-4. On first launch, right-click the app and choose **Open** to bypass Gatekeeper (the app is unsigned).
+4. On first launch, right-click the app and choose **Open** to bypass Gatekeeper (the app is ad-hoc signed, but not Developer ID signed or notarized).
 
 ### Build from source
 
