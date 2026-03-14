@@ -26,6 +26,9 @@ xcuserdata/
 .build/
 .swiftpm/
 *.resolved
+.clang-module-cache/
+.swift-driver-module-cache/
+LAN Scanner.app/
 
 # DerivedData
 DerivedData/

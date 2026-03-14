@@ -64,9 +64,7 @@ To build a proper `.app` bundle locally:
 ```bash
 swift build -c release
 
-mkdir -p "LAN Scanner.app/Contents/MacOS"
-cp .build/release/LanScanner "LAN Scanner.app/Contents/MacOS/"
-cp Sources/LanScanner/Info.plist "LAN Scanner.app/Contents/"
+./scripts/assemble_app.sh
 open "LAN Scanner.app"
 ```
 
@@ -119,6 +117,8 @@ Sources/LanScanner/
     ├── ExportView.swift          # CSV/JSON export popover
     ├── CheckForUpdatesView.swift # Sparkle "Check for Updates…" menu command
     └── SettingsView.swift        # Preferences window
+scripts/
+└── assemble_app.sh              # Local/release .app bundle assembly with Sparkle packaging
 ```
 
 ## Contributing
