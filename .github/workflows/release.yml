@@ -40,6 +40,14 @@ jobs:
           cp Sources/LanScanner/Info.plist "${APP_DIR}/Contents/Info.plist"
           cp Sources/LanScanner/AppIcon.icns "${APP_DIR}/Contents/Resources/AppIcon.icns"
 
+          # Compile Asset Catalog → Assets.car (provides CFBundleIconName for modern macOS)
+          actool Sources/LanScanner/Assets.xcassets \
+            --compile "${APP_DIR}/Contents/Resources" \
+            --platform macosx \
+            --minimum-deployment-target 14.0 \
+            --app-icon AppIcon \
+            --output-partial-info-plist /tmp/actool-partial.plist
+
           # Inject the tag version into the bundle's Info.plist
           TAG="${GITHUB_REF_NAME}"          # e.g. v1.2.3
           VERSION="${TAG#v}"               # strip leading 'v' → 1.2.3
