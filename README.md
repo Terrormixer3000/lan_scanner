@@ -24,6 +24,7 @@ A native macOS network scanner built with SwiftUI. Discover all devices on your 
 - **Notifications** — desktop alert when new (unlabelled) devices appear on the network
 - **Resizable split-view UI** — sidebar, device table with sortable columns, and detail panel with draggable dividers
 - **Auto-scan** — configurable interval-based background rescanning
+- **Auto-update** — checks for new releases via [Sparkle](https://sparkle-project.org/) and installs them in-app with EdDSA signature verification
 
 ## Requirements
 
@@ -87,6 +88,7 @@ Open **Settings** (⌘,) to configure:
 - **Concurrency** — number of simultaneous ping probes (10–200)
 - **Ping Timeout** — per-host timeout in seconds (0.2–3.0)
 - **Auto Refresh** — enable periodic rescanning and set the interval (30–600 seconds)
+- **Updates** — toggle automatic update checks and manually check for new versions
 
 ## Project Structure
 
@@ -115,6 +117,7 @@ Sources/LanScanner/
     ├── ScanToolbarView.swift     # Toolbar: network selector, scan/stop, export
     ├── NetworkSelectorView.swift # Auto/CIDR network picker
     ├── ExportView.swift          # CSV/JSON export popover
+    ├── CheckForUpdatesView.swift # Sparkle "Check for Updates…" menu command
     └── SettingsView.swift        # Preferences window
 ```
 
