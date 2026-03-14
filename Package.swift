@@ -8,7 +8,8 @@ let package = Package(
         .executableTarget(
             name: "LanScanner",
             path: "Sources/LanScanner",
-            exclude: ["Info.plist"]
+            exclude: ["Info.plist"],
+            resources: [.copy("AppIcon.icns")]
         )
     ]
 )
