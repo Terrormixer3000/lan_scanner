@@ -121,7 +121,7 @@ scripts/
 └── assemble_app.sh              # Local/release .app bundle assembly with Sparkle packaging
 ```
 
-Sparkle publishes its production feed from the dedicated `appcast` branch at `appcast.xml`.
+Sparkle publishes its production feed from the dedicated `sparkle-appcast` branch at `appcast.xml`.
 
 ## Contributing
 

@@ -102,16 +102,16 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
 
-      - name: Checkout appcast branch
+      - name: Checkout sparkle appcast branch
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: appcast
-          path: appcast-feed
+          ref: sparkle-appcast
+          path: sparkle-appcast-feed
 
       - name: Update appcast feed
         run: |
-          APPCAST_PATH="appcast-feed/appcast.xml"
+          APPCAST_PATH="sparkle-appcast-feed/appcast.xml"
 
           if [ ! -f "${APPCAST_PATH}" ]; then
             echo "error: missing appcast feed at ${APPCAST_PATH}" >&2
@@ -137,11 +137,11 @@ jobs:
           mv "${APPCAST_PATH}.new" "${APPCAST_PATH}"
 
       - name: Commit updated appcast
-        working-directory: appcast-feed
+        working-directory: sparkle-appcast-feed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add appcast.xml
           git diff --cached --quiet && echo "No appcast changes" && exit 0
           git commit -m "Update appcast for ${GITHUB_REF_NAME}"
-          git push origin HEAD:appcast
+          git push origin HEAD:sparkle-appcast
