@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>LAN Scanner</title>
+    <description>LAN Scanner update feed</description>
+    <language>en</language>
+    <!-- Items are appended automatically by the release workflow. -->
+    <item>
+      <title>Version 1.3.1</title>
+      <pubDate>Sat, 14 Mar 2026 11:42:23 +0000</pubDate>
+      <sparkle:version>6</sparkle:version>
+      <sparkle:shortVersionString>1.3.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure url="https://github.com/Terrormixer3000/LanScanner/releases/download/v1.3.1/LanScanner.zip"
+                 sparkle:edSignature="Cm+xtQTWO2i9NIasz/YpBXipwrr07bUVWjDk4YG1cgkvxvpDxZwY/s+yZx/brOF1UCmrY9sAeIEwHRjA7u+jDg=="
+                 length="1419812"
+                 type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>Version 1.3.2</title>
+      <pubDate>Sat, 14 Mar 2026 11:55:17 +0000</pubDate>
+      <sparkle:version>7</sparkle:version>
+      <sparkle:shortVersionString>1.3.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure url="https://github.com/Terrormixer3000/LanScanner/releases/download/v1.3.2/LanScanner.zip"
+                 sparkle:edSignature="7XK/7lzcfTWVfAjXarb8MYLEdjBfJ8oSTn981IFM35TCTy2FhJNalLGr5XRlAycdU4ArqHQq0AvcRluHq+urDg=="
+                 length="1419842"
+                 type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>Version 1.3.3</title>
+      <pubDate>Sat, 14 Mar 2026 12:03:18 +0000</pubDate>
+      <sparkle:version>8</sparkle:version>
+      <sparkle:shortVersionString>1.3.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure url="https://github.com/Terrormixer3000/LanScanner/releases/download/v1.3.3/LanScanner.zip"
+                 sparkle:edSignature="NwKHO8gikngiCZ5NP1Cj9/BfeHgWELYe5tB4E+WHQnPyHFrvI/ll3mpx0sc21iPScZi7fuDCiQMeyaOHjmWICw=="
+                 length="1419875"
+                 type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>Version 1.3.4</title>
+      <pubDate>Sat, 14 Mar 2026 12:24:12 +0000</pubDate>
+      <sparkle:version>9</sparkle:version>
+      <sparkle:shortVersionString>1.3.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure url="https://github.com/Terrormixer3000/LanScanner/releases/download/v1.3.4/LanScanner.zip"
+                 sparkle:edSignature="nq3r+gFFCGwwa3yCBBYv2PvnHh89+0wH1cOqgSZZu3d47Muf+PKWYmsyHFgTk7Fb4MEIDBXLSCgCflbWMJLsDQ=="
+                 length="1420457"
+                 type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>
