@@ -40,8 +40,7 @@ jobs:
         run: |
           ditto -c -k --sequesterRsrc --keepParent "LAN Scanner.app" LanScanner.zip
 
-      # Sign the update ZIP with Sparkle's EdDSA key and update the appcast.
-      - name: Sign update and update appcast
+      - name: Sign update archive
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
@@ -49,13 +48,14 @@ jobs:
           VERSION="${TAG#v}"
           SIZE=$(stat -f%z LanScanner.zip)
           PUB_DATE=$(date -R)
+          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/LanScanner.zip"
 
           # Find the sign_update tool from Sparkle's binary artifact
           SIGN_TOOL=$(find .build -name "sign_update" -type f | head -1)
 
           if [ -z "${SIGN_TOOL}" ]; then
-            echo "Warning: sign_update not found, skipping Sparkle signing"
-            exit 0
+            echo "error: sign_update not found" >&2
+            exit 1
           fi
 
           # Sign the ZIP — sign_update reads SPARKLE_PRIVATE_KEY from env
@@ -63,37 +63,19 @@ jobs:
           SIG_OUTPUT=$(echo "${SPARKLE_PRIVATE_KEY}" | "${SIGN_TOOL}" LanScanner.zip --ed-key-file -)
           ED_SIGNATURE=$(echo "${SIG_OUTPUT}" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
 
-          DOWNLOAD_URL="https://github.com/Terrormixer3000/lan_scanner/releases/download/${TAG}/LanScanner.zip"
+          if [ -z "${ED_SIGNATURE}" ]; then
+            echo "error: failed to extract Sparkle signature" >&2
+            exit 1
+          fi
 
-          # Build the new appcast item and insert before </channel>
-          awk -v ver="${VERSION}" -v pub="${PUB_DATE}" -v build="${GITHUB_RUN_NUMBER}" \
-              -v url="${DOWNLOAD_URL}" -v sig="${ED_SIGNATURE}" -v size="${SIZE}" \
-              '/<\/channel>/ {
-                print "    <item>"
-                print "      <title>Version " ver "</title>"
-                print "      <pubDate>" pub "</pubDate>"
-                print "      <sparkle:version>" build "</sparkle:version>"
-                print "      <sparkle:shortVersionString>" ver "</sparkle:shortVersionString>"
-                print "      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>"
-                print "      <enclosure url=\"" url "\""
-                print "                 sparkle:edSignature=\"" sig "\""
-                print "                 length=\"" size "\""
-                print "                 type=\"application/octet-stream\"/>"
-                print "    </item>"
-              }
-              { print }' appcast.xml > appcast_new.xml
-          mv appcast_new.xml appcast.xml
-
-      - name: Commit updated appcast
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git checkout main
-          git add appcast.xml
-          git diff --cached --quiet && echo "No appcast changes" && exit 0
-          git commit -m "Update appcast for ${GITHUB_REF_NAME}"
-          git push origin main
+          {
+            echo "RELEASE_TAG=${TAG}"
+            echo "RELEASE_VERSION=${VERSION}"
+            echo "RELEASE_SIZE=${SIZE}"
+            echo "RELEASE_PUB_DATE=${PUB_DATE}"
+            echo "RELEASE_DOWNLOAD_URL=${DOWNLOAD_URL}"
+            echo "RELEASE_ED_SIGNATURE=${ED_SIGNATURE}"
+          } >> "${GITHUB_ENV}"
 
       - name: Create GitHub Release and upload asset
         uses: softprops/action-gh-release@v2
@@ -119,3 +101,47 @@ jobs:
           files: LanScanner.zip
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
+
+      - name: Checkout appcast branch
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: appcast
+          path: appcast-feed
+
+      - name: Update appcast feed
+        run: |
+          APPCAST_PATH="appcast-feed/appcast.xml"
+
+          if [ ! -f "${APPCAST_PATH}" ]; then
+            echo "error: missing appcast feed at ${APPCAST_PATH}" >&2
+            exit 1
+          fi
+
+          awk -v ver="${RELEASE_VERSION}" -v pub="${RELEASE_PUB_DATE}" -v build="${GITHUB_RUN_NUMBER}" \
+              -v url="${RELEASE_DOWNLOAD_URL}" -v sig="${RELEASE_ED_SIGNATURE}" -v size="${RELEASE_SIZE}" \
+              '/<\/channel>/ {
+                print "    <item>"
+                print "      <title>Version " ver "</title>"
+                print "      <pubDate>" pub "</pubDate>"
+                print "      <sparkle:version>" build "</sparkle:version>"
+                print "      <sparkle:shortVersionString>" ver "</sparkle:shortVersionString>"
+                print "      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>"
+                print "      <enclosure url=\"" url "\""
+                print "                 sparkle:edSignature=\"" sig "\""
+                print "                 length=\"" size "\""
+                print "                 type=\"application/octet-stream\"/>"
+                print "    </item>"
+              }
+              { print }' "${APPCAST_PATH}" > "${APPCAST_PATH}.new"
+          mv "${APPCAST_PATH}.new" "${APPCAST_PATH}"
+
+      - name: Commit updated appcast
+        working-directory: appcast-feed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add appcast.xml
+          git diff --cached --quiet && echo "No appcast changes" && exit 0
+          git commit -m "Update appcast for ${GITHUB_REF_NAME}"
+          git push origin HEAD:appcast

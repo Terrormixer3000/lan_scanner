@@ -1,7 +1,7 @@
 # LAN Scanner
 
-[![Build](https://github.com/Terrormixer3000/lan_scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/Terrormixer3000/lan_scanner/actions/workflows/ci.yml)
-[![Release](https://github.com/Terrormixer3000/lan_scanner/actions/workflows/release.yml/badge.svg)](https://github.com/Terrormixer3000/lan_scanner/releases)
+[![Build](https://github.com/Terrormixer3000/LanScanner/actions/workflows/ci.yml/badge.svg)](https://github.com/Terrormixer3000/LanScanner/actions/workflows/ci.yml)
+[![Release](https://github.com/Terrormixer3000/LanScanner/actions/workflows/release.yml/badge.svg)](https://github.com/Terrormixer3000/LanScanner/releases)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)
 ![Swift](https://img.shields.io/badge/Swift-5.9%2B-orange)
@@ -40,7 +40,7 @@ A native macOS network scanner built with SwiftUI. Discover all devices on your 
 
 ### Download a pre-built release
 
-1. Go to the [Releases](https://github.com/Terrormixer3000/lan_scanner/releases) page.
+1. Go to the [Releases](https://github.com/Terrormixer3000/LanScanner/releases) page.
 2. Download `LanScanner.zip` from the latest release.
 3. Unzip and move `LAN Scanner.app` to your `/Applications` folder.
 4. On first launch, right-click the app and choose **Open** to bypass Gatekeeper (the app is ad-hoc signed, but not Developer ID signed or notarized).
@@ -49,8 +49,8 @@ A native macOS network scanner built with SwiftUI. Discover all devices on your 
 
 ```bash
 # Clone the repository
-git clone https://github.com/Terrormixer3000/lan_scanner.git
-cd lan_scanner
+git clone https://github.com/Terrormixer3000/LanScanner.git
+cd LanScanner
 
 # Build in release mode
 swift build -c release
@@ -120,6 +120,8 @@ Sources/LanScanner/
 scripts/
 └── assemble_app.sh              # Local/release .app bundle assembly with Sparkle packaging
 ```
+
+Sparkle publishes its production feed from the dedicated `appcast` branch at `appcast.xml`.
 
 ## Contributing
 
