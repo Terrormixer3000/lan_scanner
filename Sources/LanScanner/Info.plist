@@ -35,7 +35,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Terrormixer3000. Licensed under the GNU General Public License v3.0.</string>
     <key>SUFeedURL</key>
-    <string>https://raw.githubusercontent.com/Terrormixer3000/LanScanner/appcast/appcast.xml</string>
+    <string>https://raw.githubusercontent.com/Terrormixer3000/LanScanner/sparkle-appcast/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>bgcK3rbLj2PFpF4MUD/LMV3wyu++JYlNAj654vkqt70=</string>
     <key>SUAllowsAutomaticUpdates</key>
