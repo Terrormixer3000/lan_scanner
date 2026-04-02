@@ -49,5 +49,16 @@
                  length="1420457"
                  type="application/octet-stream"/>
     </item>
+    <item>
+      <title>Version 1.4.0</title>
+      <pubDate>Thu, 02 Apr 2026 20:50:07 +0000</pubDate>
+      <sparkle:version>12</sparkle:version>
+      <sparkle:shortVersionString>1.4.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <enclosure url="https://github.com/Terrormixer3000/LanScanner/releases/download/v1.4.0/LanScanner.zip"
+                 sparkle:edSignature="4cjiCnd4znsek1D1q6CEh+/AfUiZFcwlKvQ7SuWPpf9Dyagc6B0jsbQ/ysD85DWTVAfh6JkxAJmF3PU2QYrQCA=="
+                 length="1448320"
+                 type="application/octet-stream"/>
+    </item>
   </channel>
 </rss>
