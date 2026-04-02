@@ -1,6 +1,7 @@
 // LAN Scanner — Utilities.swift
 // Copyright © 2026 Terrormixer3000. Licensed under GPL-3.0.
 
+import AppKit
 import Foundation
 
 /// A thread-safe integer counter for tracking completed tasks across concurrent child tasks.
@@ -46,5 +47,55 @@ enum AppRuntime {
     static var canUseUserNotifications: Bool {
         let bundleURL = Bundle.main.bundleURL
         return bundleURL.pathExtension == "app" && Bundle.main.bundleIdentifier != nil
+    }
+}
+
+/// Shared formatting helpers for exporting discovered devices.
+enum DeviceExportFormatter {
+    static func csv(from devices: [NetworkDevice]) -> String {
+        var lines = ["IP Address,MAC Address,Hostname,DNS Name,mDNS Name,Vendor,Latency (ms),Open Ports,Label,Notes"]
+
+        for device in devices {
+            let latency = device.latency.map { String(format: "%.1f", $0) } ?? ""
+            let ports = device.openPorts.map(String.init).joined(separator: ";")
+            let fields = [
+                device.ipAddress,
+                device.macAddress ?? "",
+                device.hostname ?? "",
+                device.dnsName ?? "",
+                device.mdnsName ?? "",
+                device.vendor ?? "",
+                latency,
+                ports,
+                device.label ?? "",
+                device.notes ?? ""
+            ]
+
+            let row = fields
+                .map(Self.escapeCSVField)
+                .joined(separator: ",")
+            lines.append(row)
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private static func escapeCSVField(_ value: String) -> String {
+        let escapedValue = value.replacingOccurrences(of: "\"", with: "\"\"")
+        return "\"\(escapedValue)\""
+    }
+}
+
+/// Writes selected devices to the system pasteboard as CSV text.
+enum DeviceClipboard {
+    static func copyCSV(devices: [NetworkDevice]) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(DeviceExportFormatter.csv(from: devices), forType: .string)
+    }
+
+    static func csvItemProviders(devices: [NetworkDevice]) -> [NSItemProvider] {
+        let csv = DeviceExportFormatter.csv(from: devices) as NSString
+        return [NSItemProvider(object: csv)]
     }
 }

@@ -85,11 +85,13 @@ enum PingHelper {
     ///   - cidr: The subnet in CIDR notation (e.g. `"192.168.1.0/24"`).
     ///   - maxConcurrency: Maximum number of simultaneous ping subprocesses.
     ///   - progress: Called on each completion with the fraction of hosts probed so far.
+    ///   - onDiscovery: Called immediately when a host responds successfully.
     /// - Returns: An array of `HostPingResult` for every host that responded.
     static func sweepSubnet(
         _ cidr: String,
         maxConcurrency: Int = 50,
-        progress: @escaping @Sendable (Double) -> Void
+        progress: @escaping @Sendable (Double) -> Void,
+        onDiscovery: (@Sendable (HostPingResult) -> Void)? = nil
     ) async -> [HostPingResult] {
         let ips = expandCIDR(cidr)
         guard !ips.isEmpty else { return [] }
@@ -110,11 +112,13 @@ enum PingHelper {
                         let completed = await counter.increment()
                         progress(Double(completed) / total)
                         if result.alive {
-                            return HostPingResult(
+                            let hostResult = HostPingResult(
                                 ip: ip,
                                 latency: result.latency,
                                 resolvedName: result.resolvedName
                             )
+                            onDiscovery?(hostResult)
+                            return hostResult
                         }
                         return nil
                     }

@@ -95,32 +95,83 @@ final class NetworkScanner: ObservableObject {
         devices = []
 
         let cidr = activeCIDR
+        let subnetIPs = Set(PingHelper.expandCIDR(cidr))
+        var aliveHostsByIP: [String: HostPingResult] = [:]
+        var arpTable: [String: String] = [:]
+        var bonjourHostnames: [String: String] = [:]
+        var hostnames: [String: HostnameResolver.Resolution] = [:]
 
         // Phase 1: Ping sweep
-        let aliveHosts = await PingHelper.sweepSubnet(cidr, maxConcurrency: 50) { [weak self] p in
-            Task { @MainActor [weak self] in
-                self?.progress = p * 0.5
+        let aliveHosts = await PingHelper.sweepSubnet(
+            cidr,
+            maxConcurrency: 50,
+            progress: { [weak self] p in
+                Task { @MainActor [weak self] in
+                    self?.progress = p * 0.5
+                }
+            },
+            onDiscovery: { [weak self] host in
+                Task { @MainActor [weak self] in
+                    self?.upsertPingDiscoveredDevice(host)
+                }
             }
-        }
+        )
+
+        aliveHostsByIP = Dictionary(uniqueKeysWithValues: aliveHosts.map { ($0.ip, $0) })
+        rebuildDevices(
+            candidateIPs: Set(aliveHostsByIP.keys),
+            aliveHostsByIP: aliveHostsByIP,
+            arpTable: arpTable,
+            hostnames: hostnames,
+            bonjourHostnames: bonjourHostnames
+        )
 
         guard !Task.isCancelled else { isScanning = false; return }
         statusMessage = "Resolving MAC addresses..."
 
         // Phase 2: ARP
-        let arpTable = await ARPResolver.resolveAll()
-        guard !Task.isCancelled else { isScanning = false; return }
-
-        statusMessage = "Resolving hostnames..."
-        progress = 0.6
-
-        // Phase 3: Hostnames
-        let ips = aliveHosts.map(\.ip)
-        let hostnames = await HostnameResolver.resolveMany(ips: ips)
+        arpTable = await ARPResolver.resolveAll().filter { subnetIPs.contains($0.key) }
+        rebuildDevices(
+            candidateIPs: Set(aliveHostsByIP.keys).union(arpTable.keys),
+            aliveHostsByIP: aliveHostsByIP,
+            arpTable: arpTable,
+            hostnames: hostnames,
+            bonjourHostnames: bonjourHostnames
+        )
         guard !Task.isCancelled else { isScanning = false; return }
 
         statusMessage = "Browsing Bonjour services..."
+        progress = 0.6
+
+        bonjourHostnames = await BonjourResolver.resolveHostnames(for: Array(subnetIPs))
+        rebuildDevices(
+            candidateIPs: Set(aliveHostsByIP.keys)
+                .union(arpTable.keys)
+                .union(bonjourHostnames.keys),
+            aliveHostsByIP: aliveHostsByIP,
+            arpTable: arpTable,
+            hostnames: hostnames,
+            bonjourHostnames: bonjourHostnames
+        )
+        guard !Task.isCancelled else { isScanning = false; return }
+
+        statusMessage = "Resolving hostnames..."
         progress = 0.72
-        let bonjourHostnames = await BonjourResolver.resolveHostnames(for: ips)
+
+        let candidateIPs = Set(aliveHostsByIP.keys)
+            .union(arpTable.keys)
+            .union(bonjourHostnames.keys)
+        let sortedCandidateIPs = candidateIPs.sorted {
+            $0.localizedStandardCompare($1) == .orderedAscending
+        }
+        hostnames = await HostnameResolver.resolveMany(ips: sortedCandidateIPs)
+        rebuildDevices(
+            candidateIPs: candidateIPs,
+            aliveHostsByIP: aliveHostsByIP,
+            arpTable: arpTable,
+            hostnames: hostnames,
+            bonjourHostnames: bonjourHostnames
+        )
         guard !Task.isCancelled else { isScanning = false; return }
 
         statusMessage = "Loading vendor database..."
@@ -131,49 +182,14 @@ final class NetworkScanner: ObservableObject {
         statusMessage = "Looking up vendors..."
         progress = 0.85
 
-        // Phase 4: Assemble
-        let labels = deviceLabels
-        let vendor = vendorLookup
-        let newDevices: [NetworkDevice] = aliveHosts.map { host in
-            var device = NetworkDevice(ipAddress: host.ip)
-            device.isOnline = true
-            device.latency = host.latency
-            device.macAddress = arpTable[host.ip]
-            if let resolution = hostnames[host.ip] {
-                device.hostname = resolution.hostname
-                device.dnsName = resolution.dnsName
-                device.mdnsName = resolution.mdnsName
-            }
-
-            if let bonjourName = bonjourHostnames[host.ip] {
-                if device.hostname == nil {
-                    device.hostname = bonjourName
-                }
-                if bonjourName.lowercased().hasSuffix(".local") {
-                    if device.mdnsName == nil {
-                        device.mdnsName = bonjourName
-                    }
-                } else if device.dnsName == nil {
-                    device.dnsName = bonjourName
-                }
-            } else if let pingName = host.resolvedName {
-                device.hostname = pingName
-                if pingName.lowercased().hasSuffix(".local") {
-                    device.mdnsName = pingName
-                } else {
-                    device.dnsName = pingName
-                }
-            }
-            if let mac = device.macAddress {
-                device.vendor = vendor.lookup(mac: mac)
-                if let saved = labels[mac] {
-                    device.label = saved.label.isEmpty ? nil : saved.label
-                    device.notes = saved.notes.isEmpty ? nil : saved.notes
-                }
-            }
-            return device
-        }
-
+        let newDevices = assembledDevices(
+            sortedCandidateIPs: sortedCandidateIPs,
+            aliveHostsByIP: aliveHostsByIP,
+            arpTable: arpTable,
+            hostnames: hostnames,
+            bonjourHostnames: bonjourHostnames,
+            vendorLookup: vendorLookup
+        )
         devices = newDevices
         progress = 1.0
         isScanning = false
@@ -184,6 +200,105 @@ final class NetworkScanner: ObservableObject {
         if scanHistory.count > 50 { scanHistory = Array(scanHistory.prefix(50)) }
         saveHistory()
         checkForNewDevices(newDevices)
+    }
+
+    private func upsertPingDiscoveredDevice(_ host: HostPingResult) {
+        var device = devices.first(where: { $0.id == host.ip }) ?? NetworkDevice(ipAddress: host.ip)
+        device.isOnline = true
+        device.latency = host.latency
+
+        if let pingName = host.resolvedName {
+            device.hostname = pingName
+            if pingName.lowercased().hasSuffix(".local") {
+                device.mdnsName = pingName
+                device.dnsName = nil
+            } else {
+                device.dnsName = pingName
+                device.mdnsName = nil
+            }
+        }
+
+        if let index = devices.firstIndex(where: { $0.id == host.ip }) {
+            devices[index] = device
+        } else {
+            devices.append(device)
+            devices.sort { $0.ipAddress.localizedStandardCompare($1.ipAddress) == .orderedAscending }
+        }
+    }
+
+    private func rebuildDevices(
+        candidateIPs: Set<String>,
+        aliveHostsByIP: [String: HostPingResult],
+        arpTable: [String: String],
+        hostnames: [String: HostnameResolver.Resolution],
+        bonjourHostnames: [String: String]
+    ) {
+        let sortedCandidateIPs = candidateIPs.sorted {
+            $0.localizedStandardCompare($1) == .orderedAscending
+        }
+        devices = assembledDevices(
+            sortedCandidateIPs: sortedCandidateIPs,
+            aliveHostsByIP: aliveHostsByIP,
+            arpTable: arpTable,
+            hostnames: hostnames,
+            bonjourHostnames: bonjourHostnames,
+            vendorLookup: nil
+        )
+    }
+
+    private func assembledDevices(
+        sortedCandidateIPs: [String],
+        aliveHostsByIP: [String: HostPingResult],
+        arpTable: [String: String],
+        hostnames: [String: HostnameResolver.Resolution],
+        bonjourHostnames: [String: String],
+        vendorLookup: VendorLookup?
+    ) -> [NetworkDevice] {
+        let labels = deviceLabels
+
+        return sortedCandidateIPs.map { ip in
+            let pingHost = aliveHostsByIP[ip]
+
+            var device = NetworkDevice(ipAddress: ip)
+            device.isOnline = pingHost != nil
+            device.latency = pingHost?.latency
+            device.macAddress = arpTable[ip]
+            if let resolution = hostnames[ip] {
+                device.hostname = resolution.hostname
+                device.dnsName = resolution.dnsName
+                device.mdnsName = resolution.mdnsName
+            }
+
+            if let bonjourName = bonjourHostnames[ip] {
+                if device.hostname == nil {
+                    device.hostname = bonjourName
+                }
+                if bonjourName.lowercased().hasSuffix(".local") {
+                    if device.mdnsName == nil {
+                        device.mdnsName = bonjourName
+                    }
+                } else if device.dnsName == nil {
+                    device.dnsName = bonjourName
+                }
+            } else if let pingName = pingHost?.resolvedName {
+                device.hostname = pingName
+                if pingName.lowercased().hasSuffix(".local") {
+                    device.mdnsName = pingName
+                } else {
+                    device.dnsName = pingName
+                }
+            }
+
+            if let mac = device.macAddress {
+                device.vendor = vendorLookup?.lookup(mac: mac)
+                if let saved = labels[mac] {
+                    device.label = saved.label.isEmpty ? nil : saved.label
+                    device.notes = saved.notes.isEmpty ? nil : saved.notes
+                }
+            }
+
+            return device
+        }
     }
 
     /// Persists a custom label and notes for a device identified by its MAC address.
@@ -221,26 +336,7 @@ final class NetworkScanner: ObservableObject {
     /// The first row is a header. All field values are double-quoted.
     /// Multiple open ports are separated by semicolons within their cell.
     func exportCSV() -> String {
-        var lines = ["IP Address,MAC Address,Hostname,DNS Name,mDNS Name,Vendor,Latency (ms),Open Ports,Label,Notes"]
-        for d in devices {
-            let latencyStr = d.latency.map { String(format: "%.1f", $0) } ?? ""
-            let portsStr = d.openPorts.map(String.init).joined(separator: ";")
-            let fields: [String] = [
-                d.ipAddress,
-                d.macAddress ?? "",
-                d.hostname ?? "",
-                d.dnsName ?? "",
-                d.mdnsName ?? "",
-                d.vendor ?? "",
-                latencyStr,
-                portsStr,
-                d.label ?? "",
-                d.notes ?? ""
-            ]
-            let row = fields.map { "\"\($0)\"" }.joined(separator: ",")
-            lines.append(row)
-        }
-        return lines.joined(separator: "\n")
+        DeviceExportFormatter.csv(from: devices)
     }
 
     /// Encodes the current device list as pretty-printed JSON data.
