@@ -12,6 +12,8 @@ import SwiftUI
 /// - A details-panel toggle button.
 struct ScanToolbarView: ToolbarContent {
     @ObservedObject var scanner: NetworkScanner
+    let canCopySelectedDevices: Bool
+    let copySelectedDevices: () -> Void
     @Binding var showExport: Bool
     @Binding var showsDetails: Bool
 
@@ -21,6 +23,15 @@ struct ScanToolbarView: ToolbarContent {
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
+            Button {
+                scanner.startScan()
+            } label: {
+                Image(systemName: "antenna.radiowaves.left.and.right")
+            }
+            .help(scanner.isScanning ? "Scan Running" : "Scan")
+            .buttonStyle(.bordered)
+            .disabled(scanner.activeCIDR.isEmpty || scanner.isScanning)
+
             if scanner.isScanning {
                 ProgressView(value: scanner.progress)
                     .controlSize(.small)
@@ -30,16 +41,14 @@ struct ScanToolbarView: ToolbarContent {
 
                 Button("Stop", systemImage: "stop.fill", action: { scanner.stopScan() })
                     .buttonStyle(.bordered)
-            } else {
-                Button {
-                    scanner.startScan()
-                } label: {
-                    Image(systemName: "antenna.radiowaves.left.and.right")
-                }
-                .help("Scan")
-                .buttonStyle(.bordered)
-                .disabled(scanner.activeCIDR.isEmpty)
             }
+
+            Button(action: copySelectedDevices) {
+                Image(systemName: "doc.on.doc")
+            }
+            .help("Copy Selected Devices as CSV")
+            .disabled(!canCopySelectedDevices)
+            .buttonStyle(.bordered)
 
             Button {
                 showExport = true

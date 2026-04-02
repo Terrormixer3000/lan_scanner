@@ -11,9 +11,11 @@ import SwiftUI
 struct DeviceListView: View {
     @ObservedObject var scanner: NetworkScanner
     @Binding var selectedDevice: NetworkDevice?
+    @Binding var selectedDeviceIDs: Set<NetworkDevice.ID>
     @Binding var searchText: String
     @State private var sortOrder = [KeyPathComparator(\NetworkDevice.ipAddress)]
-    @State private var selectedID: NetworkDevice.ID?
+    @SceneStorage("device-list-column-customization")
+    private var columnCustomization = TableColumnCustomization<NetworkDevice>()
 
     var filteredDevices: [NetworkDevice] {
         if searchText.isEmpty { return scanner.devices }
@@ -40,8 +42,11 @@ struct DeviceListView: View {
         .onChange(of: sortOrder) {
             scanner.devices.sort(using: sortOrder)
         }
-        .onChange(of: selectedID) { _, newID in
-            selectedDevice = scanner.devices.first { $0.id == newID }
+        .onChange(of: selectedDeviceIDs) { _, newIDs in
+            selectedDevice = scanner.devices.first { newIDs.contains($0.id) }
+        }
+        .onCopyCommand {
+            copySelectionItemProviders()
         }
     }
 
@@ -59,8 +64,13 @@ struct DeviceListView: View {
 
     @ViewBuilder
     private var deviceTable: some View {
-        Table(filteredDevices, selection: $selectedID, sortOrder: $sortOrder) {
-            TableColumn("IP Address", value: \.ipAddress) { device in
+        Table(
+            filteredDevices,
+            selection: $selectedDeviceIDs,
+            sortOrder: $sortOrder,
+            columnCustomization: $columnCustomization
+        ) {
+            TableColumn("IP Address", value: \NetworkDevice.ipAddress) { device in
                 HStack {
                     Circle()
                         .fill(device.isOnline ? Color.green : Color.red)
@@ -70,47 +80,77 @@ struct DeviceListView: View {
                 }
             }
             .width(min: 110, ideal: 130)
+            .customizationID("ip-address")
 
-            TableColumn("Hostname") { device in
+            TableColumn("Hostname", value: \NetworkDevice.sortableHostname) { device in
                 Text(device.hostname ?? "—")
                     .foregroundStyle(device.hostname == nil ? .secondary : .primary)
             }
             .width(min: 120, ideal: 180)
+            .customizationID("hostname")
 
-            TableColumn("MAC Address") { device in
+            TableColumn("MAC Address", value: \NetworkDevice.sortableMACAddress) { device in
                 Text(device.macAddress ?? "—")
                     .font(.system(.body, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
             .width(min: 140, ideal: 160)
+            .customizationID("mac-address")
 
-            TableColumn("Vendor") { device in
+            TableColumn("Vendor", value: \NetworkDevice.sortableVendor) { device in
                 Text(device.vendor ?? "—")
             }
             .width(min: 100, ideal: 150)
+            .customizationID("vendor")
 
-            TableColumn("Latency") { device in
+            TableColumn("Latency", value: \NetworkDevice.sortableLatency) { device in
                 latencyCell(device)
             }
             .width(70)
+            .customizationID("latency")
 
-            TableColumn("Ports") { device in
+            TableColumn("Ports", value: \NetworkDevice.sortablePorts) { device in
                 portsCell(device)
             }
             .width(min: 80, ideal: 120)
+            .customizationID("ports")
 
-            TableColumn("DNS") { device in
+            TableColumn("DNS", value: \NetworkDevice.sortableDNSName) { device in
                 Text(device.dnsName ?? "—")
                     .foregroundStyle(device.dnsName == nil ? .secondary : .primary)
             }
             .width(min: 140, ideal: 200)
+            .customizationID("dns")
 
-            TableColumn("mDNS") { device in
+            TableColumn("mDNS", value: \NetworkDevice.sortableMDNSName) { device in
                 Text(device.mdnsName ?? "—")
                     .foregroundStyle(device.mdnsName == nil ? .secondary : .primary)
             }
             .width(min: 140, ideal: 200)
+            .customizationID("mdns")
         }
+        .contextMenu(forSelectionType: NetworkDevice.ID.self) { _ in
+            Button("Copy as CSV") {
+                copySelectionToPasteboard()
+            }
+            .disabled(selectedDeviceIDs.isEmpty)
+        } primaryAction: { _ in
+            if let firstSelectedID = selectedDeviceIDs.first {
+                selectedDevice = scanner.devices.first { $0.id == firstSelectedID }
+            }
+        }
+    }
+
+    private func copySelectionToPasteboard() {
+        let selectedDevices = filteredDevices.filter { selectedDeviceIDs.contains($0.id) }
+        guard !selectedDevices.isEmpty else { return }
+        DeviceClipboard.copyCSV(devices: selectedDevices)
+    }
+
+    private func copySelectionItemProviders() -> [NSItemProvider] {
+        let selectedDevices = filteredDevices.filter { selectedDeviceIDs.contains($0.id) }
+        guard !selectedDevices.isEmpty else { return [] }
+        return DeviceClipboard.csvItemProviders(devices: selectedDevices)
     }
 
     @ViewBuilder

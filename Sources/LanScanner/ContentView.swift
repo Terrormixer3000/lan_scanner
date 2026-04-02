@@ -13,9 +13,11 @@ import UserNotifications
 struct ContentView: View {
     @StateObject private var scanner = NetworkScanner()
     @State private var selectedDevice: NetworkDevice?
+    @State private var selectedDeviceIDs = Set<NetworkDevice.ID>()
     @State private var showExport = false
     @State private var searchText = ""
     @State private var showsDetails = false
+    @State private var showsScanOverlay = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,15 +25,18 @@ struct ContentView: View {
                 ResizableSplitView(
                     scanner: scanner,
                     selectedDevice: $selectedDevice,
+                    selectedDeviceIDs: $selectedDeviceIDs,
                     searchText: $searchText,
                     showExport: $showExport,
-                    showsDetails: $showsDetails
+                    showsDetails: $showsDetails,
+                    copySelectedDevices: copySelectedDevices
                 )
 
-                if scanner.isScanning {
+                if scanner.isScanning && showsScanOverlay {
                     LoadingOverlay(
                         progress: scanner.progress,
-                        statusMessage: scanner.statusMessage
+                        statusMessage: scanner.statusMessage,
+                        dismiss: { showsScanOverlay = false }
                     )
                 }
             }
@@ -41,15 +46,34 @@ struct ContentView: View {
         .onAppear {
             requestNotificationPermissions()
         }
+        .onChange(of: scanner.isScanning) { _, isScanning in
+            if isScanning {
+                showsScanOverlay = true
+            }
+        }
+        .onChange(of: selectedDeviceIDs) { _, _ in
+            updateSelectedDevice(using: scanner.devices)
+        }
         .onChange(of: scanner.devices) { _, devices in
-            guard let selectedDevice else { return }
-            self.selectedDevice = devices.first(where: { $0.id == selectedDevice.id })
+            let validIDs = Set(devices.map(\.id))
+            selectedDeviceIDs = selectedDeviceIDs.intersection(validIDs)
+            updateSelectedDevice(using: devices)
         }
     }
     
     private func requestNotificationPermissions() {
         guard AppRuntime.canUseUserNotifications else { return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
+    private func copySelectedDevices() {
+        let selectedDevices = scanner.devices.filter { selectedDeviceIDs.contains($0.id) }
+        guard !selectedDevices.isEmpty else { return }
+        DeviceClipboard.copyCSV(devices: selectedDevices)
+    }
+
+    private func updateSelectedDevice(using devices: [NetworkDevice]) {
+        selectedDevice = devices.first { selectedDeviceIDs.contains($0.id) }
     }
 }
 
@@ -103,9 +127,11 @@ struct StatusFooterView: View {
 struct ResizableSplitView: View {
     @ObservedObject var scanner: NetworkScanner
     @Binding var selectedDevice: NetworkDevice?
+    @Binding var selectedDeviceIDs: Set<NetworkDevice.ID>
     @Binding var searchText: String
     @Binding var showExport: Bool
     @Binding var showsDetails: Bool
+    let copySelectedDevices: () -> Void
     
     @State private var sidebarWidth: CGFloat = 220
     @State private var listWidth: CGFloat = 600
@@ -129,6 +155,7 @@ struct ResizableSplitView: View {
                     DeviceListView(
                         scanner: scanner,
                         selectedDevice: $selectedDevice,
+                        selectedDeviceIDs: $selectedDeviceIDs,
                         searchText: $searchText
                     )
                     .searchable(text: $searchText, prompt: "Search devices...")
@@ -138,6 +165,8 @@ struct ResizableSplitView: View {
                 .toolbar {
                     ScanToolbarView(
                         scanner: scanner,
+                        canCopySelectedDevices: !selectedDeviceIDs.isEmpty,
+                        copySelectedDevices: copySelectedDevices,
                         showExport: $showExport,
                         showsDetails: $showsDetails
                     )
@@ -234,12 +263,14 @@ struct DividerHandle: View {
 struct LoadingOverlay: View {
     let progress: Double
     let statusMessage: String
+    let dismiss: () -> Void
     
     var body: some View {
         ZStack {
             Rectangle()
                 .fill(.black.opacity(0.12))
                 .ignoresSafeArea()
+                .onTapGesture(perform: dismiss)
             
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 12) {
@@ -266,6 +297,10 @@ struct LoadingOverlay: View {
                 ProgressView(value: progress, total: 1.0)
                     .controlSize(.small)
                     .progressViewStyle(.linear)
+
+                Text("Click outside to hide this dialog. The scan continues in the background.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             .frame(width: 320)
             .padding(.horizontal, 18)
@@ -276,6 +311,7 @@ struct LoadingOverlay: View {
                     .strokeBorder(.white.opacity(0.18))
             }
             .shadow(color: .black.opacity(0.12), radius: 24, y: 10)
+            .onTapGesture { }
         }
         .transition(.opacity)
         .animation(.easeInOut, value: progress)

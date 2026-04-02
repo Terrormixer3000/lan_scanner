@@ -73,4 +73,39 @@ struct NetworkDevice: Identifiable, Codable, Equatable, Hashable, Sendable {
     var preferredResolvedName: String? {
         hostname ?? mdnsName ?? dnsName
     }
+
+    /// Lowercased hostname value used for stable table sorting.
+    var sortableHostname: String {
+        hostname?.lowercased() ?? ""
+    }
+
+    /// Lowercased MAC address value used for stable table sorting.
+    var sortableMACAddress: String {
+        macAddress?.lowercased() ?? ""
+    }
+
+    /// Lowercased vendor value used for stable table sorting.
+    var sortableVendor: String {
+        vendor?.lowercased() ?? ""
+    }
+
+    /// Numeric latency value used for table sorting, defaulting missing values to a large sentinel.
+    var sortableLatency: Double {
+        latency ?? .greatestFiniteMagnitude
+    }
+
+    /// A comma-separated open-port summary used for table sorting.
+    var sortablePorts: String {
+        openPorts.map(String.init).joined(separator: ",")
+    }
+
+    /// Lowercased DNS value used for stable table sorting.
+    var sortableDNSName: String {
+        dnsName?.lowercased() ?? ""
+    }
+
+    /// Lowercased mDNS value used for stable table sorting.
+    var sortableMDNSName: String {
+        mdnsName?.lowercased() ?? ""
+    }
 }
